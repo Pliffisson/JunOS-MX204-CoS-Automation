@@ -1,0 +1,56 @@
+{% if state == 'present' or state == 'edit' -%}
+set class-of-service forwarding-classes queue 0 best-effort
+set class-of-service forwarding-classes queue 1 priority-video
+set class-of-service forwarding-classes queue 3 network-control
+set class-of-service classifiers dscp cliente-padrao-v4 import default
+set class-of-service classifiers dscp-ipv6 cliente-padrao-v6 import default
+set class-of-service drop-profiles ECN-PROFILE fill-level 100 drop-probability 0
+set class-of-service schedulers BE-SCHEDULER transmit-rate remainder
+set class-of-service schedulers BE-SCHEDULER drop-profile-map loss-priority any protocol any drop-profile ECN-PROFILE
+set class-of-service schedulers VIDEO-SCHEDULER transmit-rate percent 10
+set class-of-service schedulers VIDEO-SCHEDULER priority medium-high
+set class-of-service schedulers VIDEO-SCHEDULER drop-profile-map loss-priority any protocol any drop-profile ECN-PROFILE
+set class-of-service schedulers NC-SCHEDULER transmit-rate percent 5
+set class-of-service schedulers NC-SCHEDULER priority high
+set class-of-service scheduler-maps ISP-STANDARD-MAP forwarding-class best-effort scheduler BE-SCHEDULER
+set class-of-service scheduler-maps ISP-STANDARD-MAP forwarding-class priority-video scheduler VIDEO-SCHEDULER
+set class-of-service scheduler-maps ISP-STANDARD-MAP forwarding-class network-control scheduler NC-SCHEDULER
+set class-of-service traffic-control-profiles PLANO_{{ bandwidth_limit }} shaping-rate {{ bandwidth_limit }}
+set class-of-service traffic-control-profiles PLANO_{{ bandwidth_limit }} scheduler-map ISP-STANDARD-MAP
+set firewall policer PLANO_{{ bandwidth_limit }} logical-interface-policer
+set firewall policer PLANO_{{ bandwidth_limit }} if-exceeding bandwidth-limit {{ bandwidth_limit }} burst-size-limit 320k
+set firewall policer PLANO_{{ bandwidth_limit }} then discard
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN interface-specific
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term ACEITO from source-address {{ ipv4_address }}
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term ACEITO then count IPv4-validation
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term ACEITO then count CNT-PLANO-{{ bandwidth_limit }}
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term ACEITO then policer PLANO_{{ bandwidth_limit }}
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term ACEITO then accept
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term DROP then count IPv4-drop
+set firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN term DROP then reject
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN interface-specific
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term ACEITO from source-address {{ ipv6_address }}
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term ACEITO then count IPv6-validation
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term ACEITO then count CNT-PLANO-{{ bandwidth_limit }}
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term ACEITO then policer PLANO_{{ bandwidth_limit }}
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term ACEITO then accept
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term DROP then count IPv6-drop
+set firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN term DROP then reject
+set interfaces ae0 unit {{ vlan_id }} description "{{ client_name }}"
+set interfaces ae0 unit {{ vlan_id }} proxy-arp restricted
+set interfaces ae0 unit {{ vlan_id }} vlan-id {{ vlan_id }}
+set interfaces ae0 unit {{ vlan_id }} family inet rpf-check
+set interfaces ae0 unit {{ vlan_id }} family inet filter input FILTRO-VLAN-{{ vlan_id }}-V4-IN
+set interfaces ae0 unit {{ vlan_id }} family inet address {{ ipv4_gateway }}
+set interfaces ae0 unit {{ vlan_id }} family inet6 rpf-check
+set interfaces ae0 unit {{ vlan_id }} family inet6 filter input FILTRO-VLAN-{{ vlan_id }}-V6-IN
+set interfaces ae0 unit {{ vlan_id }} family inet6 address {{ ipv6_gateway }}
+set class-of-service interfaces ae0 unit {{ vlan_id }} output-traffic-control-profile PLANO_{{ bandwidth_limit }}
+set class-of-service interfaces ae0 unit {{ vlan_id }} classifiers dscp cliente-padrao-v4
+set class-of-service interfaces ae0 unit {{ vlan_id }} classifiers dscp-ipv6 cliente-padrao-v6
+{% elif state == 'absent' -%}
+delete interfaces ae0 unit {{ vlan_id }}
+delete firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN
+delete firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN
+delete class-of-service interfaces ae0 unit {{ vlan_id }}
+{% endif -%}

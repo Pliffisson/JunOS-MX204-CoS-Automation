@@ -1,0 +1,30 @@
+# Ansible & Security
+*.retry
+*.log
+group_vars/all/vault.yml  # Apenas suba se for uma versão de exemplo (vault_example.yml)
+.ansible/
+ansible.cfg
+
+# Relatórios e Auditoria (Dados Sensíveis de Clientes)
+reports/
+*.pdf
+*.md
+!README.md
+!walkthrough.md
+!implementation_plan.md
+!optimization_plan.md
+!verification_guide.md
+
+# Python & Ambientes Virtuais
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Sistema e IDEs
+.vscode/
+.idea/
+.DS_Store
+*.swp
+.agent/

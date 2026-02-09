@@ -1,0 +1,46 @@
+---
+- name: Visualizar Configuracao de Cliente - MX204
+  hosts: MX204_BORDA
+  gather_facts: no
+  connection: ansible.netcommon.netconf
+
+  vars_prompt:
+    - name: vlan_id
+      prompt: "Digite a VLAN ID do Cliente para visualizar"
+      private: no
+
+  tasks:
+    - name: Consultar Dados do Cliente (Optimized RPC)
+      junos_command:
+        commands:
+          - "show configuration interfaces ae0 unit {{ vlan_id }}"
+          - "show configuration class-of-service interfaces ae0 unit {{ vlan_id }}"
+          - "show configuration firewall family inet filter FILTRO-VLAN-{{ vlan_id }}-V4-IN"
+          - "show configuration firewall family inet6 filter FILTRO-VLAN-{{ vlan_id }}-V6-IN"
+          - "show firewall filter FILTRO-VLAN-{{ vlan_id }}-V4-IN-ae0.{{ vlan_id }}-i"
+          - "show firewall filter FILTRO-VLAN-{{ vlan_id }}-V6-IN-ae0.{{ vlan_id }}-i"
+      register: junos_data
+      ignore_errors: yes
+
+    - name: Consolidar informacoes
+      set_fact:
+        # Interface
+        full_int_config: "{{ junos_data.stdout[0] | default('Configuração de interface não encontrada', true) }}"
+        # CoS
+        cos_raw: "{{ junos_data.stdout[1] | default('Nenhuma configuração de CoS na interface', true) }}"
+        # Firewall (Configuracao - Consulta Direta)
+        v4_filter_conf: "{{ junos_data.stdout[2] | default('Configuração do Filtro IPv4 não encontrada', true) }}"
+        v6_filter_conf: "{{ junos_data.stdout[3] | default('Configuração do Filtro IPv6 não encontrada', true) }}"
+        # Firewall (Status Operacional)
+        v4_filter_ops: "{{ junos_data.stdout[4] | default('Status operacional IPv4 não disponível', true) }}"
+        v6_filter_ops: "{{ junos_data.stdout[5] | default('Status operacional IPv6 não disponível', true) }}"
+
+    - name: Gerar Relatorio Markdown
+      template:
+        src: templates/client_report.md.j2
+        dest: "reports/REPORT_CLIENTE_VLAN_{{ vlan_id }}.md"
+      delegate_to: localhost
+
+    - name: Finalizacao
+      debug:
+        msg: "Consulta concluida! O relatório detalhado foi gerado em: reports/REPORT_CLIENTE_VLAN_{{ vlan_id }}.md"

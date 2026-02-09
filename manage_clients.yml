@@ -1,0 +1,110 @@
+---
+- name: Gestao de Clientes ISP - MX204
+  hosts: MX204_BORDA
+  gather_facts: no
+  connection: ansible.netcommon.netconf
+
+  vars_prompt:
+    - name: vlan_id
+      prompt: "Digite a VLAN ID do Cliente"
+      private: no
+
+  tasks:
+    # DEFINICAO DE VARIAVEIS INICIAIS
+    - name: Inicializar variaveis
+      set_fact:
+        client_name: "N/A"
+        bandwidth_limit: "60m"
+        ipv4_address: "N/A"
+        ipv4_gateway: "N/A"
+        ipv6_address: "N/A"
+        ipv6_gateway: "N/A"
+        op_status: "unknown"
+
+    - name: Verificar se a interface ae0.{{ vlan_id }} ja existe
+      junos_command:
+        commands:
+          - "show configuration interfaces ae0 unit {{ vlan_id }}"
+      register: check_interface
+
+    - name: Definir status de existencia
+      set_fact:
+        client_exists: "{{ 'description' in check_interface.stdout[0] or 'family' in check_interface.stdout[0] }}"
+
+    # CENARIO 1: CLIENTE JA EXISTE - INTERACAO
+    - block:
+        - name: Interacao para Cliente Existente
+          pause:
+            prompt: "VLAN {{ vlan_id }} ja configurada. O que deseja fazer? [e]ditar, [d]eletar ou [s]air?"
+          register: user_action
+
+        - name: Abortar se solicitado
+          fail:
+            msg: "Operacao cancelada pelo usuario."
+          when: user_action.user_input == 's'
+      when: client_exists
+
+    # COLETAR DADOS (Individualmente para maior precisao)
+    - block:
+        - name: Coletar Nome do Cliente
+          pause:
+            prompt: "Digite o NOME do cliente"
+          register: prompt_name
+        
+        - name: Coletar Banda
+          pause:
+            prompt: "Digite a BANDA (ex: 60m, 100m, 1g)"
+          register: prompt_band
+
+        - name: Coletar IPv4 e Gateway
+          pause:
+            prompt: "Digite o IPV4_WAN (v4/30) e o GATEWAY (ex: 186.208.255.66/30, 186.208.255.65)"
+          register: prompt_v4
+
+        - name: Coletar IPv6 e Gateway
+          pause:
+            prompt: "Digite o IPV6_WAN (v6/48) e o GATEWAY (ex: 2804:176c:951::2/48, 2804:176c:951::1)"
+          register: prompt_v6
+
+        - name: Processar Inputs
+          set_fact:
+            client_name: "{{ prompt_name.user_input | trim }}"
+            bandwidth_limit: "{{ prompt_band.user_input | trim | default('60m', true) }}"
+            ipv4_address: "{{ prompt_v4.user_input.split(',')[0] | trim }}"
+            ipv4_gateway: "{{ prompt_v4.user_input.split(',')[1] | trim }}"
+            ipv6_address: "{{ prompt_v6.user_input.split(',')[0] | trim }}"
+            ipv6_gateway: "{{ prompt_v6.user_input.split(',')[1] | trim }}"
+            op_status: "{{ 'edit' if client_exists else 'present' }}"
+      when: (not client_exists) or (client_exists and user_action.user_input == 'e')
+
+    # APLICACAO E REPORT COM ROBUSTEZ (Block/Rescue)
+    - block:
+        - name: Aplicar Configuracao Junos
+          junos_config:
+            lines: "{{ lookup('template', 'templates/cos_config.j2', template_vars=dict(state=op_status)) | split('\n') }}"
+            comment: "Ansible: Gerando/Editando cliente VLAN {{ vlan_id }}"
+          register: config_result
+          when: (not client_exists) or (client_exists and user_action.user_input == 'e')
+
+        - name: Deletar Configuracao do Cliente
+          junos_config:
+            lines: "{{ lookup('template', 'templates/cos_config.j2', template_vars=dict(state='absent')) | split('\n') }}"
+            comment: "Ansible: Removendo cliente VLAN {{ vlan_id }}"
+          when: client_exists and user_action.user_input == 'd'
+          register: delete_result
+
+        - name: Gerar Relatorio PDF
+          shell: "./.venv/bin/python3 scripts/generate_report.py '{{ client_name }}' '{{ vlan_id }}' '{{ bandwidth_limit }}' '{{ ipv4_address }}' '{{ ipv6_address }}' '{{ op_status }}'"
+          delegate_to: localhost
+          register: pdf_result
+          when: config_result is defined and config_result.changed
+
+        - name: Finalizacao Sucesso
+          debug:
+            msg: "Operacao concluida com sucesso! {{ 'Relatorio: reports/REPORTE_VLAN_' + vlan_id + '.pdf' if (pdf_result is defined and pdf_result is not skipped) else 'Nenhum relatorio gerado.' }}"
+
+      rescue:
+        - name: Falha na Operacao
+          fail:
+            msg: "ERRO CRITICO: A operacao falhou ao aplicar configuracao ou gerar relatorio. Verifique a conectividade ou sintaxe."
+      when: not (client_exists and user_action is defined and user_action.user_input == 's')

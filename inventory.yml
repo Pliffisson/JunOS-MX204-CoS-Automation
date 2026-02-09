@@ -1,0 +1,9 @@
+all:
+  hosts:
+    MX204_BORDA:
+      ansible_host: 10.1.10.205 # <--- Troque pelo IP do seu roteador
+      ansible_user: pliffisson.gomes
+      ansible_port: 60002 # <--- Porta SSH customizada
+      ansible_password: "{{ router_password }}" # <--- Recomendamos usar Ansible Vault ou solicitar senha
+      ansible_connection: ansible.netcommon.netconf
+      ansible_network_os: junipernetworks.junos.junos

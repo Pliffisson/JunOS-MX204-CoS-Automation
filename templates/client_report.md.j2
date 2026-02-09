@@ -1,0 +1,68 @@
+# 🔍 Relatório de Auditoria Técnica: VLAN {{ vlan_id }}
+
+> **Status:** Relatório técnico consolidado da configuração e estado operacional.
+> **Equipamento:** Junos MX204 (Borda)
+
+---
+
+## 📋 Informações de Identificação
+
+| Campo | Valor |
+| :--- | :--- |
+| **Interface Lógica** | `ae0.{{ vlan_id }}` |
+| **VLAN ID** | `{{ vlan_id }}` |
+| **Data da Consulta** | {{ lookup('pipe', 'date "+%d/%m/%Y %H:%M:%S"') }} |
+
+---
+
+## 🛡️ Firewall: Monitoramento em Tempo Real
+*Estatísticas de tráfego, contadores e policers (hits/drops).*
+
+### 🟢 Tráfego IPv4
+```text
+{{ hostvars[inventory_hostname]['v4_filter_ops'] }}
+```
+
+### 🔵 Tráfego IPv6
+```text
+{{ hostvars[inventory_hostname]['v6_filter_ops'] }}
+```
+
+---
+
+## 🌐 Configuração de Rede (L3 & RPF)
+*Definição de endereçamento e segurança de entrada na interface.*
+
+```junos
+{{ hostvars[inventory_hostname]['full_int_config'] }}
+```
+
+---
+
+## ⚙️ Firewall: Lógica das Regras (Filters)
+*Detalhamento dos termos e ações de segurança.*
+
+#### 📁 Filtro IPv4 (Regras Aplicadas)
+```junos
+{{ hostvars[inventory_hostname]['v4_filter_conf'] }}
+```
+
+#### 📁 Filtro IPv6 (Regras Aplicadas)
+```junos
+{{ hostvars[inventory_hostname]['v6_filter_conf'] }}
+```
+
+---
+
+## ⚡ Class of Service (QoS & Shaping)
+*Configuração de banda e priorização de pacotes.*
+
+```junos
+{{ hostvars[inventory_hostname]['cos_raw'] }}
+```
+
+---
+
+<div align="center">
+  <sub>Gerado automaticamente via Ansible Automation - Direteório: <code>reports/</code></sub>
+</div>
