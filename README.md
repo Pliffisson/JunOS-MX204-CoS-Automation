@@ -22,7 +22,6 @@ Este projeto automatiza a gestão de **Class of Service (CoS)** e **Filtros de F
 - `view_client.yml`: Playbook de visualização e auditoria (Consulta).
 - `reports/`: Pasta centralizada onde todos os relatórios (.pdf e .md) são salvos.
 - `inventory.yml`: Inventário com definições de host e porta.
-- `inventory.yml`: Ajuste o endereço, usuário e porta do roteador para seu ambiente; mantenha a verificação da identidade do host SSH/NETCONF.
 - `templates/cos_config.j2`: Modelo Jinja2 para a configuração Junos.
 - `templates/client_report.md.j2`: Modelo Markdown para relatórios de consulta.
 - `scripts/generate_report.py`: Script Python para geração de relatórios PDF.
