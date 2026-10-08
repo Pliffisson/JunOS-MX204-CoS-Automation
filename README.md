@@ -22,7 +22,7 @@ Este projeto automatiza a gestão de **Class of Service (CoS)** e **Filtros de F
 - `view_client.yml`: Playbook de visualização e auditoria (Consulta).
 - `reports/`: Pasta centralizada onde todos os relatórios (.pdf e .md) são salvos.
 - `inventory.yml`: Inventário com definições de host e porta.
-- `ansible.cfg`: Configurações de ambiente (desabilita host_key_checking).
+- `inventory.yml`: Ajuste o endereço, usuário e porta do roteador para seu ambiente; mantenha a verificação da identidade do host SSH/NETCONF.
 - `templates/cos_config.j2`: Modelo Jinja2 para a configuração Junos.
 - `templates/client_report.md.j2`: Modelo Markdown para relatórios de consulta.
 - `scripts/generate_report.py`: Script Python para geração de relatórios PDF.
@@ -34,13 +34,14 @@ Este projeto automatiza a gestão de **Class of Service (CoS)** e **Filtros de F
 - Ansible instalado.
 - Coleção Juniper instalada: `ansible-galaxy collection install junipernetworks.junos`
 - Python 3.12+ com biblioteca `fpdf2`.
-- O arquivo `ansible.cfg` já está configurado para permitir conexões sem validação estrita de host key (`host_key_checking = False`), necessário para novos dispositivos.
+- Antes da primeira conexão, confira a fingerprint do roteador por um canal confiável e registre a chave no `known_hosts` do operador. Não desative `host_key_checking` em ambientes de produção.
 
 ### 2. Segurança (Ansible Vault)
-Edite o arquivo [vault.yml](file:///home/enw/Consultor-ISP-DC-Juniper/group_vars/all/vault.yml) com sua senha e encripte-o:
+O arquivo [vault.yml](group_vars/all/vault.yml) já está criptografado com Ansible Vault. Edite-o com a senha do Vault e defina `router_password` para o seu ambiente:
 ```bash
-ansible-vault encrypt group_vars/all/vault.yml
+ansible-vault edit group_vars/all/vault.yml
 ```
+Não publique senhas nem arquivos Vault descriptografados.
 
 ## 🚀 Como Usar
 
